@@ -1,0 +1,24 @@
+/**
+ * Group 20:
+ *  Aimée, 2673058 : aimee.donsu@gmail.com
+ *  Dominique, 2660301 : dominiquerueda31@gmail.com
+ *  Faisief, 2571453 : faisiefs@gmail.com
+ *  Gargi, 2663421 : gargiaryan@gmail.com
+**/
+
+
+use 'cbsr-eis-connector.jar' as environment 
+	with server='127.0.0.1', % '192.168.2.5',
+		flowkey='test-agent-jmmc-3d88327924fa.json',
+		flowagent='test-agent-jmmc',
+		flowlang='en-US'.
+		
+define dialogmngr as agent {
+	use dialog_init as init.
+	use dialog_update as event.
+	use dialog_generation as main.
+}
+
+launchpolicy{
+	when * launch dialogmngr.
+}

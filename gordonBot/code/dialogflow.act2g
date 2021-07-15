@@ -1,0 +1,27 @@
+use dialogue as knowledge.
+use patterns as knowledge.
+
+%%% Tablet actions (external)
+define tabletOpen with
+	pre { true }
+	post { true }
+	
+define renderPage(Html) with
+	pre { true }
+	post { true }
+
+%%% Sequence actions (internal)
+% Add new empty sequence at the head of the session
+define startNewSequence as internal with
+	pre  { session(List), append([ [] ], List, NewList) }
+	post { not(session(List)), session(NewList) }
+
+% Add id of conversation pattern to the currently empty sequence at the start of the session
+define updateSession(PatternId) as internal with
+	pre	 { session([ [] | T ]) }
+	post { not(session([ [] | T])), session([ [PatternId] | T]) }
+
+% Add id of conversation pattern as subpattern to currently active pattern (head of session)
+define expandSession(SubPatternId) as internal with
+	pre { session([H | T]), add(H, [SubPatternId], NewH) }
+	post { not(session([H | T])), session([NewH | T]) }

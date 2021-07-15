@@ -1,0 +1,104 @@
+use dialogue as knowledge.
+use patterns as knowledge.
+use cooking as knowledge.
+use text as knowledge.
+use html as knowledge.
+use dialogflow as actionspec.
+use updateSession as module.
+
+% This module is the agent's main module where the agent dialog is generated.
+module dialog_generation {
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% CHECK FOR NEED TO FILL SLOTS 												%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% If last (user-initiated) added intent has missing slots, and a matching slotfilling 
+	% intent is available (e.g. a24detailRequest for a24recipeQuantity), then add pattern for
+	% slot filling requests.
+	if bel(lastAddedIntentTriple([user, Intent, Params]), missingSlots(Params, Missing), 
+		length(Missing, NrOfSlotsMissing), NrOfSlotsMissing>0, slotFill(Intent, SlotFillIntent),
+		stepCounter(Cnt), totalSteps(Target), missingSlots(Slots))
+		then delete(stepCounter(Cnt), totalSteps(Target), missingSlots(Slots)) +
+				insert(stepCounter(0), totalSteps(NrOfSlotsMissing), missingSlots(Missing)) +
+				expandSession(slotFill(SlotFillIntent)).
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% HANDLE AGENDA MANAGING INSTRUCTIONS											%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	if bel(expectedIntent(Actor, Intent), Actor = agent) then {
+		% Handle instruction 'repeat(Pattern)' (to repeat a sub-pattern)
+		if bel(Intent = repeat(SubPatternId), stepCounter(Cnt), totalSteps(Target)) 
+		then {
+			% Case Cnt = -1: counter is not used; initialize stepCounter and totalSteps.
+			if bel(Cnt = -1, steps(SubPatternId, NewTarget))
+				then delete(stepCounter(Cnt), totalSteps(Target)) + 
+					insert(stepCounter(0), totalSteps(NewTarget)).
+					
+			% Case Cnt < Target: there are still steps to do, therefore, add SubPattern as
+			% subpattern to sequence at head of session history, and increase Cnt.
+			if bel(Cnt < Target, NewCnt is Cnt + 1)
+				then delete(stepCounter(Cnt)) + insert(stepCounter(NewCnt)) +
+					expandSession(SubPatternId).
+			
+			% Case Cnt = Target: all steps have been done; set to -1 again to indicate counter is 
+			% no longer used and add repeat instruction to sequence in session history.
+			if bel(Cnt = Target)
+				then delete(stepCounter(Cnt)) + insert(stepCounter(-1)) + 
+					updateSession(agent, repeat(SubPatternId), [], '').
+		}
+
+		% Handle instruction 'restart' (which reinitializes the agent's agenda) and start a new sequence so the user can change
+		% its mind about which recipe to make
+		if bel(Intent = restart, agenda(Agenda), initialAgenda(InitAgenda))
+			then delete(agenda(Agenda)) + insert(agenda(InitAgenda)) + 
+				updateSession(agent, restart, [], '') + startNewSequence.
+				
+				
+		% Handle instruction 'terminate'
+		% empty the agenda
+		if bel(Intent = terminate, agenda(Agenda))
+			then delete(agenda(Agenda)) + insert(agenda([])) +
+				updateSession(agent, terminate, [], '').
+	}
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% Manage opening and closing of session										%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% If current sequence is empty, check if agent can/should do something to continue conversation. 
+	if bel(session([ [] | T ])) then {
+		% Week 1: Add here your rules for adding opening patterns (first check for c11 and then add 
+		% c10 exploiting the linear order evaluation of this main module).
+		
+		%if the head of the session is empty and the agent has a name then the agent introduce itself
+		if bel(T =[]), bel(agentName(_)) then
+			updateSession(c11).
+		
+		%if the head of the session is empty than the agent greets the user
+		if bel(T =[]) then
+			updateSession(c10).
+		
+		% If nothing else, check agenda.
+		if bel(agenda([PatternId | Patterns]))
+			then delete(agenda([PatternId | Patterns])) + insert(agenda(Patterns)) +
+				updateSession(PatternId).
+				
+		% Week 1: Add here your rules for adding closing patterns.
+		% when the agenda is empty (aka complete) the agent asks for anything else and performs a closing pattern
+		if bel(agenda([])), bel(lastTopicCheck) then delete(lastTopicCheck) + updateSession(c40).
+		% when there is nothing else left to do the agent says goodbye
+		if bel(agenda([])) then updateSession(c43).
+	
+	}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% EXECUTE PATTERN (Agent; user input is handled in dialog_update module)		%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	% Rule for using chat (tablet); simply inserts chat fact (because agent responds that quickly)
+	if bel(expectedIntent(Actor, Intent), Actor = agent, text(Intent, Txt), 
+		string_concat('<b>Me:</b> ', Txt, Out), paragraph(Out, Paragraph),
+		chatCounter(Cnt), NewCnt is Cnt + 1) then delete(chatCounter(Cnt)) +
+			insert(chat(NewCnt, Paragraph), chatCounter(NewCnt), renderPage) + 
+			updateSession(agent, Intent, [], Txt).
+}

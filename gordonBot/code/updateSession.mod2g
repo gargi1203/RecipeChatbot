@@ -1,0 +1,29 @@
+use dialogue as knowledge.
+use patterns as knowledge.
+use dialogflow as actionspec.
+
+order=linear.
+
+% Updates the session with an intent of either user or agent.
+% Tries to identify pattern based on (user) intent if current sequence is empty.
+module updateSession(Actor, Intent, Params, Txt) {
+	
+	if bel(session([ H | T ])) then {
+		% CASE 1: Intent INITIATES A NEW SEQUENCE.
+		if bel(H = [], matchingPattern(Actor, Intent, PatternId))
+			then updateSession(PatternId) + updateSession(Actor, Intent, Params, Txt).
+
+		% CASE 2: Intent CONTRIBUTES TO THE CURRENT SEQUENCE.
+		if bel(expectedIntent(Actor, Intent), session([H | T]), add(H, [Actor, Intent, Params], NewH))
+			then delete(session([ H | T])) + insert(session([ NewH | T])).
+		
+		% CASE 3: Intent INITIATES A SUBSEQUENCE.
+		% does not work for b13
+		if bel(matchingPattern(Actor, Intent, PatternId))
+			then expandSession(PatternId) + updateSession(Actor, Intent, Params, Txt).
+			
+		% CASE 4: Agent indicates it recognised but does not understand the dialog move.
+		% Week 3: add your solution here
+		if true then expandSession(b13) + updateSession(Actor, Intent, Params, Txt).
+	}
+}

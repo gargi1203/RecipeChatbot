@@ -1,0 +1,43 @@
+use dialogue as knowledge.
+use patterns as knowledge.
+use cooking as knowledge.
+use html as knowledge.
+use dialogflow as actionspec.
+use updateSession as module.
+
+module dialog_update {
+
+	% Before processing any intents, check for completion of sequence, and, 
+	% if so, add new empty sequence.
+	if bel(session([ Sequence | _]), completedPattern(Sequence)) 
+		then startNewSequence.
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% Percept processing                %%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	% First update agent's memory (recording user inputs)
+	% We take a simple approach for now, not taking context into account, where:
+	% - all new parameters are added to the memory;
+	% - all parameters that already were in the memory are overwritten
+	if percept(intent(_, Params, _, _, _)), bel(updateMemory(Params, OldMemory, NewMemory)) 
+		then delete(memory(OldMemory)) + insert(memory(NewMemory)).
+	
+	% Dialogflow intent percept (ignoring confidence and source parameters for now)
+	if percept(intent(Intent, Params, _, Txt, _)), not(bel(Intent= '')) 
+		then updateSession(user, Intent, Params, Txt).
+	% If no intent was recognized but there is text, treat this as a default fallback intent
+	% that will trigger repair
+	if percept(intent('', _, _, Txt, _))
+		then updateSession(user, defaultFallback, [], Txt).
+
+	% Send any text that has been received from a user through the chat to the same html page
+	if percept(intent(_, _, _, Txt, 'chat')), bel(string_concat('<b>You:</b> ', Txt, Out), 
+		paragraph(Out, Paragraph), chatCounter(Cnt), NewCnt is Cnt + 1)
+			then delete(chatCounter(Cnt)) + 
+				insert(chat(NewCnt, Paragraph), chatCounter(NewCnt), renderPage).
+	
+	if bel(renderPage, bagof(Txt, Cnt^chat(Cnt, Txt), Texts), reverse(Texts, TextsRev), atomics_to_string(TextsRev, ChatTexts), 
+		chatbox(ChatBox), html(ChatTexts, ChatBox, Html))
+			then renderPage(Html) + delete(renderPage).
+}

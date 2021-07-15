@@ -1,0 +1,52 @@
+use dialogue as knowledge.
+use patterns as knowledge.
+use cooking as knowledge.
+use html as knowledge. % knowledge needed for creating a chatbot window (webpage)
+
+use dialogflow as actionspec.
+
+module dialog_init {
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% Create a chat window.											%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	if bel(chatbox(ChatBox), html('', ChatBox, Html))
+		then tabletOpen + sleep(100) + renderPage(Html).
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% Initialize dialogue parameters.									%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	if true then
+		% Agenda (list of patterns)
+		% the agent follows an agenda when being used, it has to complete all the patterns in the agenda before closing
+		% c12,
+		insert(agenda([a50recipeName, a50ingredientsCheck, a51utenstilCheck, a52OriginCheck, a30recipe, a31garnishStep])) +
+		% Session history (initialized to a list of one empty sequence).
+		insert(session([ [] ])) +
+		% Chat counter (initialized to zero, no steps performed yet).
+		insert(chatCounter(0)) +
+		% Memory (should be initially empty but to get our given agent started it is not).
+		insert(memory([])) +
+		% Initialize missingSlots/1. See dialogue.pl for more info.
+		insert(missingSlots([])) +
+		% Initialize lastTopicCheck
+		insert(lastTopicCheck) + 
+		% Initialize stepCounter/1 and totalSteps/1. See dialogue.pl for more info.
+		insert(stepCounter(-1), totalSteps(0)).
+
+	% Copy agenda to be able to reinitialize (restart) agenda.
+	if bel(agenda(Agenda)) then insert(initialAgenda(Agenda)).
+		
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%% Initialize behavioural parameters (to finetune agent behavior)	%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% Week 1: Add here your chatbot name using the agentName/1 predicate (or comment next line).
+	if true then insert(agentName("GordonBot")).
+	
+	% when user is male insert name
+	%if true then 
+	%	insert(userMaleName("Jamie Oliver")).
+	% when user is female insert name
+	%if true then 
+	%	insert(userFemaleName("Melissa Leong")).
+}
